@@ -5,8 +5,10 @@ var Plate = require('./plate.js');
 var Square = require('./square.js');
 var Units = require('./units.js');
 var Unit = require('./unit.js');
-var C = require('./contest.js');
-var firstContest = new C.create();
+var Contest = require('./contest.js');
+var Contests = require('./contests.js');
+var c = Contests.create();
+console.log(c);
 var variable = "true";
 
 process.on('not opened', function (err) {
@@ -15,8 +17,14 @@ process.on('not opened', function (err) {
 });
 
 
-
-wss.on('connection', function(socket,contest){
+wss.on('connection', function(socket){
+    socket.on("close", function() {
+        c.deleteContest(socket.contestId);  
+     });
+     
+     socket.on("end", function() {
+         c.deleteContest(socket.contestId);
+     });
 
     socket.units = new Units.create();
     //Reception d'un message
@@ -89,7 +97,8 @@ if(message.action == 'moveUnit') {
      socket.units.handler[x2+","+y2].moveTo(x2,y2);
      socket.units.removeUnit(x1,y1);
    }
-   socket.plate.updateGridMatrix(x1,y1,x2,y2); 
+   socket.plate.updateGridMatrix(x1,y1,x2,y2);
+   socket.contest.players[socket.playerId-1].opponent.plate.updateGridMatrix(x1,y1,x2,y2);
 }
 
 
@@ -98,7 +107,7 @@ if(message.action == 'getReachableSquares') {
     var x = message.X;
     var y = message.Y;
 
-//    if(!socket.units.handler[x+","+y].hasMoved)
+    if(!socket.units.handler[x+","+y].hasMoved)
        socket.units.handler[x+","+y].getReachableSquares();
 }
 
@@ -108,8 +117,8 @@ if(message.action == 'getAttackableSquares') {
     var x = message.X;
     var y = message.Y;
 
-//    if(!socket.units.handler[x+","+y].hasMoved)
-    socket.units.handler[x+","+y].getAttackableSquares();
+    if(!socket.units.handler[x+","+y].hasAttacked)
+        socket.units.handler[x+","+y].getAttackableSquares();
 }
 
 
@@ -130,9 +139,7 @@ if(message.action == 'attack') {
 *******************************************************************************/
 
 if(message.action == 'joinContest') {
-    
-    console.log(firstContest);
-    firstContest.join(socket);
+   c.joinContest(socket);
 }
 
 

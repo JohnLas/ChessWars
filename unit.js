@@ -1,40 +1,40 @@
 var PF = require('pathfinding');
 var Square = require('./square.js');
-
+var Request = require('./request.js');
 
 function create(x,y, id, typeId,playerId,socket) {
 
   if (typeId == 1) {
       this.name = "Infantry";
-      this.d = 2;
+      this.d = 3;
       this.life = 100;
       this.attack = 30;
       this.defense = 30;
       this.bullet = 10;
       this.delay = 5;
-      this.remainingDelay = 5;
+      this.remainingDelay = 0;
   }
 
   if (typeId == 3) {
       this.name = "Commando";
-      this.d = 3;
+      this.d = 4;
       this.life = 100;
       this.attack = 60;
       this.defense = 50;
       this.bullet = 10;
       this.delay = 6;
-      this.remainingDelay = 6;
+      this.remainingDelay = 0;
   }
 
   if (typeId == 8) {
       this.name = "Spy";
-      this.d = 5;
+      this.d = 6;
       this.life = 100;
       this.attack = 10;
       this.defense = 10;
       this.bullet = 10;
-      this.delay = 3;
-      this.remainingDelay =3;
+      this.delay = 4;
+      this.remainingDelay =0;
   }
 
   if (typeId == 9) {
@@ -80,7 +80,7 @@ function create(x,y, id, typeId,playerId,socket) {
   response.movingSquare = this.d;
   response.name = this.name;
   response.action = "unitCreated";
-  socket.send(JSON.stringify(response));
+  new Request.sendResponse(socket,response);
 
   return this;
 }
@@ -88,18 +88,16 @@ function create(x,y, id, typeId,playerId,socket) {
 
 function moveTo(x,y) {
   this.setPosition(x,y);
-  this.hasMoved = 1;
-
+  
   var response = {};
   response.action = "moveUnit";
   response.serverId = this.id;
   response.x = x;
   response.y =y;
-  console.log(response);
-  console.log(this.socket.contest.players[this.socket.playerId-1].opponent.send(JSON.stringify(response)));
-  console.log(this.socket.contest.players[this.socket.playerId-1].opponent);
-  console.log("player id "+this.socket.playerId);
+  if(!this.hasMoved)
+     new Request.sendResponse(this.socket.contest.players[this.socket.playerId-1].opponent,response);
 
+  this.hasMoved = 1;
 }
 
 
@@ -112,24 +110,33 @@ function setPosition(x,y) {
 
 
 function attackUnit(defender) {
-  defender.life = defender.life - Math.ceil((this.attack * this.life / 100 )/(defender.defense * defender.life / 100) * 10);
-  
-  var response = {};
-  response.action = "updateLife";
-  response.id = defender.id; 
-  response.life = defender.life;
-  this.socket.send(JSON.stringify(response));
+  if (!this.hasAttacked) {
+      defender.life = defender.life - Math.ceil((this.attack * this.life / 100 )/(defender.defense * defender.life / 100) * 10);
+      
+      var response = {};
+      response.action = "attack";
+      response.id = defender.id; 
+      response.life = defender.life;
+      
+      new Request.sendResponse(this.socket,response);
+      new Request.sendResponse(this.socket.contest.players[this.socket.playerId-1].opponent,response);
 
-  if(defender.life<=0)
-    defender.destroy();
+      if(defender.life<=0)
+        defender.destroy();
 
-  this.hasAttacked = 1;
+      this.hasAttacked = 1;
+   }
 }
 
 function destroy () {
   console.log("destroy");
   this.socket.units.removeUnit(this.x,this.y)
-  this.socket.plate.deleteElementFromGridMatrix(this.x,this.y);  
+  this.socket.plate.deleteElementFromGridMatrix(this.x,this.y);
+
+  var response = {};
+  response.action = "destroyUnit";
+  response.id = this.id;
+  new Request.sendResponse(this.socket.contest.players[this.socket.playerId-1].opponent,response);
 }
 
 function getReachableSquares () {
@@ -168,8 +175,7 @@ function getReachableSquares () {
 
   for (var i in eligibleSquares)
     response.reachableSquares.data[i] = eligibleSquares[i].getEncapsulatedCoordinates();
-
-  this.socket.send(JSON.stringify(response));
+  new Request.sendResponse(this.socket,response);
 }
 
 
@@ -204,8 +210,7 @@ function getAttackableSquares () {
     response.attackableSquares.data.push(square.getEncapsulatedCoordinates());
 
   response.attackableSquares.size[0] = response.attackableSquares.data.length;
-
-  this.socket.send(JSON.stringify(response));
+  new Request.sendResponse(this.socket,response);
 
 }
 

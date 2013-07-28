@@ -1,3 +1,5 @@
+var Request = require('./request.js');
+
 function create() {
   this.handler = {};
   this.currentUnit = null;
@@ -54,20 +56,21 @@ function getUnitPlayingOrder (socket) {
         row[3] = [unitOrder[order].remainingDelay];
         response.playingOrder.data.push(row);
     }
-
-    console.log(response.playingOrder.data);
-    socket.send(JSON.stringify(response));
+    new Request.sendResponse(socket,response);
+    new Request.sendResponse(socket.contest.players[socket.playerId-1].opponent,response);
 }
 
 
 function updateUnitPlayingOrder (socket) {
     var delayToDecrement = this.currentUnit.remainingDelay;
     for (var position in this.handler) {
-        if (this.handler[position])
+        if (this.handler[position]) {
             this.handler[position].remainingDelay = this.handler[position].remainingDelay - delayToDecrement;
+            this.handler[position].hasMoved = 0;
+            this.handler[position].hasAttacked = 0;
+        }
     }
    this.currentUnit.remainingDelay = this.currentUnit.delay;
-   console.log(this.currentUnit.delay);
    this.getUnitPlayingOrder(socket)
 }
 
